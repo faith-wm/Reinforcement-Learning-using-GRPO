@@ -16,6 +16,17 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 cuda.matmul.allow_tf32 = True
 
 
+def save_samples(completions, ground_truth, log_file):
+    for completion, gt in zip(completions, ground_truth):
+        if random.random() < 0.1:  # 10% chance to save
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            with open(log_file, "a") as f:
+                f.write(f"\n\n==============\n")
+                f.write(f"Prompt:\n{gt}\n\n")
+                f.write(f"Completion:\n{completion}\n")
+    return
+
+
 def reward_length(completions, ground_truth, **kwargs):
     try:
         completions = [completion[0]["content"] for completion in completions]
@@ -25,7 +36,10 @@ def reward_length(completions, ground_truth, **kwargs):
             else -abs(400 - length) / 50
             for length in completions_length
         ]
-    except:
+        log_file = kwargs.get("completion_log_file", "completion_samples/completion_samples.txt")
+        save_samples(completions, ground_truth, log_file)
+    except Exception as e:
+        print("Error during reward scoring or sample saving:", e)
         length_score = [0] * len(completions)
     return length_score
 
@@ -85,7 +99,7 @@ def main(args):
         model=model,
         args=training_args,
         train_dataset=train_data,
-        reward_funcs=[reward_length]
+        reward_funcs=[lambda comps, gts, **kw: reward_length(comps, gts, completion_log_file=args.completion_log_file)]
     )
 
     try:
@@ -125,6 +139,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_generations", type=int, default=2)
     parser.add_argument("--remove_unused_columns", action="store_true")
     parser.add_argument("--log_completions", action="store_true")
+
+    # New argument
+    parser.add_argument("--completion_log_file", type=str, default="completion_samples/completion_samples.txt", help="Where to save sampled completions.")
 
     args = parser.parse_args()
     main(args)
