@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python train_with_grpo.py \
+python grpo_training.py \
     --model_id Meta-Llama-3.1-8B-Instruct \
     --data_path train_data.csv \
     --deepspeed deepspeed_config.json \
